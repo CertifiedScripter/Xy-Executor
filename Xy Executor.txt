@@ -1,0 +1,246 @@
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+-- GUI Setup
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "XyExecutor"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ResetOnSpawn = false
+
+local Main = Instance.new("Frame")
+Main.Parent = ScreenGui
+Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+Main.Position = UDim2.new(0.5, -350, 0.5, -200)
+Main.Size = UDim2.new(0, 700, 0, 400)
+Main.BorderSizePixel = 0
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Parent = Main
+TitleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+TitleBar.Size = UDim2.new(1, 0, 0, 45)
+Instance.new("UICorner", TitleBar)
+
+local Title = Instance.new("TextLabel")
+Title.Parent = TitleBar
+Title.Size = UDim2.new(0, 300, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Xy Executor [R-SHIFT]"
+Title.TextColor3 = Color3.fromRGB(0, 200, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Close Button (top right)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = TitleBar
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.Position = UDim2.new(1, -45, 0, 5)
+CloseBtn.Size = UDim2.new(0, 35, 0, 35)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 18
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
+
+CloseBtn.MouseEnter:Connect(function()
+	CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 70, 70)
+end)
+CloseBtn.MouseLeave:Connect(function()
+	CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+	ScreenGui:Destroy()
+end)
+
+-- ScriptBlox Search Sidebar
+local SearchBar = Instance.new("TextBox")
+SearchBar.Parent = Main
+SearchBar.Size = UDim2.new(0, 180, 0, 30)
+SearchBar.Position = UDim2.new(0, 10, 0, 55)
+SearchBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+SearchBar.TextColor3 = Color3.fromRGB(255, 255, 255)
+SearchBar.PlaceholderText = "Search ScriptBlox..."
+SearchBar.Text = ""
+Instance.new("UICorner", SearchBar)
+
+local SearchBtn = Instance.new("TextButton")
+SearchBtn.Parent = Main
+SearchBtn.Size = UDim2.new(0, 180, 0, 30)
+SearchBtn.Position = UDim2.new(0, 10, 0, 90)
+SearchBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+SearchBtn.Text = "SEARCH"
+SearchBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", SearchBtn)
+
+local SidePanel = Instance.new("ScrollingFrame")
+SidePanel.Parent = Main
+SidePanel.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+SidePanel.Position = UDim2.new(0, 10, 0, 130)
+SidePanel.Size = UDim2.new(0, 180, 0, 260)
+SidePanel.CanvasSize = UDim2.new(0, 0, 10, 0)
+SidePanel.ScrollBarThickness = 0
+local UIList = Instance.new("UIListLayout")
+UIList.Parent = SidePanel
+UIList.Padding = UDim.new(0, 5)
+
+-- Editor
+local Editor = Instance.new("TextBox")
+Editor.Parent = Main
+Editor.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+Editor.Position = UDim2.new(0, 200, 0, 55)
+Editor.Size = UDim2.new(1, -210, 0, 285)
+Editor.Font = Enum.Font.Code
+Editor.TextSize = 14
+Editor.TextColor3 = Color3.fromRGB(255, 255, 255)
+Editor.Text = "-- Xy Executor Ready"
+Editor.ClearTextOnFocus = false
+Editor.MultiLine = true
+Editor.TextXAlignment = Enum.TextXAlignment.Left
+Editor.TextYAlignment = Enum.TextYAlignment.Top
+Instance.new("UICorner", Editor)
+
+-- Bottom Buttons
+local Exec = Instance.new("TextButton")
+Exec.Parent = Main
+Exec.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+Exec.Position = UDim2.new(0, 200, 0, 350)
+Exec.Size = UDim2.new(0, 340, 0, 40)
+Exec.Text = "EXECUTE"
+Exec.Font = Enum.Font.GothamBold
+Instance.new("UICorner", Exec)
+
+local ClearBtn = Instance.new("TextButton")
+ClearBtn.Parent = Main
+ClearBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+ClearBtn.Position = UDim2.new(0, 550, 0, 350)
+ClearBtn.Size = UDim2.new(0, 140, 0, 40)
+ClearBtn.Text = "CLEAR"
+ClearBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+ClearBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", ClearBtn)
+
+-- ScriptBlox Logic
+local function SearchScriptBlox(query)
+	for _, v in pairs(SidePanel:GetChildren()) do 
+		if v:IsA("TextButton") then v:Destroy() end 
+	end
+	
+	if query == "" then return end
+	
+	local success, response = pcall(function()
+		return game:HttpGet("https://scriptblox.com/api/script/search?q=" .. HttpService:UrlEncode(query) .. "&page=1", true)
+	end)
+	
+	if not success then return end
+	
+	local data
+	success, data = pcall(function()
+		return HttpService:JSONDecode(response)
+	end)
+	
+	if not success or not data or not data.result or not data.result.scripts then return end
+	
+	for _, scr in pairs(data.result.scripts) do
+		local btn = Instance.new("TextButton")
+		btn.Parent = SidePanel
+		btn.Size = UDim2.new(1, 0, 0, 35)
+		btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+		btn.Text = scr.title or "No Title"
+		btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+		btn.TextSize = 10
+		Instance.new("UICorner", btn)
+		
+		btn.MouseButton1Click:Connect(function()
+			Editor.Text = scr.script or "-- Script not available"
+		end)
+	end
+end
+
+SearchBtn.MouseButton1Click:Connect(function()
+	SearchScriptBlox(SearchBar.Text)
+end)
+
+SearchBar.FocusLost:Connect(function(enterPressed)
+	if enterPressed then
+		SearchScriptBlox(SearchBar.Text)
+	end
+end)
+
+Exec.MouseButton1Click:Connect(function()
+	loadstring(Editor.Text)()
+end)
+
+ClearBtn.MouseButton1Click:Connect(function() 
+	Editor.Text = "" 
+end)
+
+-- Toggle visibility with Right Shift (PC only, mobile can use close button or re-execute)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.RightShift then 
+		Main.Visible = not Main.Visible 
+	end
+end)
+
+-- Cross-platform Dragging (PC mouse + Mobile touch)
+local dragging = false
+local dragInput = nil
+local dragStart = nil
+local startPos = nil
+
+local function updateInput(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		local delta = input.Position - dragStart
+		Main.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end
+
+TitleBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = Main.Position
+		
+		dragInput = input  -- Track this specific input for mobile multi-touch
+		
+		-- Bring to front
+		Main.Parent = nil
+		Main.Parent = ScreenGui
+	end
+end)
+
+TitleBar.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		updateInput(input)
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and dragInput and input == dragInput then
+		updateInput(input)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input == dragInput then
+		dragging = false
+		dragInput = nil
+	end
+end)
+
+-- Optional: End drag if mouse button released globally (helps on PC)
+UserInputService.InputEnded:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+		dragInput = nil
+	end
+end)
